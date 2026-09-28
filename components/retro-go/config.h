@@ -158,6 +158,11 @@
 #define RG_BOOT_LAUNCHER_ON_POWER_ON 0
 #endif
 
+// Default scaling mode for games (RG_DISPLAY_SCALING_*), the launcher always uses FIT. Can be changed in the game menu
+#ifndef RG_SCREEN_SCALING_DEFAULT
+#define RG_SCREEN_SCALING_DEFAULT RG_DISPLAY_SCALING_FIT
+#endif
+
 #ifndef RG_SCREEN_PARTIAL_UPDATES
 #define RG_SCREEN_PARTIAL_UPDATES 1
 #endif

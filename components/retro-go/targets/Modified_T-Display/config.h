@@ -29,6 +29,7 @@
 #define RG_SCREEN_ROTATE            0
 #define RG_SCREEN_VISIBLE_AREA      {40, 53, 40, 52} // Left, Top, Right, Bottom
 #define RG_SCREEN_SAFE_AREA         {0, 0, 0, 0}
+#define RG_SCREEN_SCALING_DEFAULT   RG_DISPLAY_SCALING_FULL // Stretch games to fill the wide 240x135 screen
 #define RG_SCREEN_INIT()                                                                                   \
     ILI9341_CMD(0x36, 0xA0);                 /* Memory Access Control (MY|MV|RGB) */                      \
     ILI9341_CMD(0xB2, 0x0C, 0x0C, 0x00, 0x33, 0x33); /* Porch Setting */                                  \

@@ -623,10 +623,13 @@ void rg_display_deinit(void)
 void rg_display_init(void)
 {
     RG_LOGI("Initialization...\n");
+    // The configurable default scaling only applies to games, the launcher keeps FIT
+    bool is_launcher = strcmp(rg_system_get_app()->name, RG_APP_LAUNCHER) == 0;
+    int default_scaling = is_launcher ? RG_DISPLAY_SCALING_FIT : RG_SCREEN_SCALING_DEFAULT;
     // TO DO: We probably should call the setters to ensure valid values...
     config = (rg_display_config_t){
         .backlight = rg_settings_get_number(NS_GLOBAL, SETTING_BACKLIGHT, 80),
-        .scaling = rg_settings_get_number(NS_APP, SETTING_SCALING, RG_DISPLAY_SCALING_FIT),
+        .scaling = rg_settings_get_number(NS_APP, SETTING_SCALING, default_scaling),
         .filter = rg_settings_get_number(NS_APP, SETTING_FILTER, RG_DISPLAY_FILTER_BOTH),
         .rotation = rg_settings_get_number(NS_APP, SETTING_ROTATION, RG_DISPLAY_ROTATION_AUTO),
         .border_file = rg_settings_get_string(NS_APP, SETTING_BORDER, NULL),
