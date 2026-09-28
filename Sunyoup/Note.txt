@@ -83,6 +83,11 @@ components/retro-go/rg_system.c
     버튼이 부족해서 메뉴로 돌아갈 수 없었기 때문
   - 게임 안에서 일어나는 소프트웨어 재시작은 그대로 이어서 실행됨
 
+components/retro-go/rg_display.c
+  - upstream 버그 수정: rg_display_set_rotation() 이 회전값을 배율 설정 키(DispScaling)에
+    저장하고 있었음. 메뉴에서 화면 회전을 바꾸면 배율 설정이 덮어써지고, 회전 설정은
+    저장되지 않았음. 회전 설정 키(DispRotation) 에 저장하도록 고침
+
 components/retro-go/rg_input.c
   - 새 옵션 RG_GPIO_BATTERY_ADC_ENABLE : 정의하면 배터리 ADC 초기화 때 그 핀을 HIGH 로 켬
     (정의하지 않은 다른 타깃은 영향 없음)
