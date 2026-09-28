@@ -25,8 +25,8 @@ LCD (SPI3/VSPI, 40MHz)
   MOSI 19, SCLK 18, CS 5, DC 13, RST 23, 백라이트 4
 
 SD 카드 (SPI2/HSPI)
-  SCK 2, MOSI 15, MISO 36, CS 26
-  * MISO 는 원래 GPIO12 였으나 GPIO36 으로 옮김 (아래 5번 참조)
+  SCK 2, MOSI 15, MISO 22, CS 26, 속도 20MHz (SDMMC_FREQ_DEFAULT)
+  * MISO 는 GPIO12 -> GPIO36 -> GPIO22 로 두 번 옮김 (아래 5번 참조)
 
 방향키 (ADC, 두 버튼씩 한 핀에 묶음, 각 핀에 10k 풀다운)
   UP/DOWN    = GPIO38 (ADC1_CH2)
@@ -109,8 +109,25 @@ GPIO12 스트랩 문제 (SD MISO)
     이 보드의 flash 는 3.3V 용이라 읽지 못함
   - SD 모듈이 MISO(GPIO12) 를 HIGH 로 끌어올리고 있었음
   - 부트 ROM 이 먼저 읽는 값이라 소프트웨어로는 해결 불가
-  - 해결: SD MISO 를 GPIO36 으로 옮겨서 납땜
+  - 해결: SD MISO 를 다른 핀으로 옮겨서 납땜 (처음엔 GPIO36, 아래 문제로 다시 GPIO22)
     (다른 방법: espefuse.py set_flash_voltage 3.3V 로 eFuse 고정, 되돌릴 수 없음)
+
+GPIO36 글리치 문제 (SD MISO, 일부 게임에서 "ROM: Read error")
+  - 증상: Terra_Cresta.nes 를 실행하면 "ROM: Read error / ROM load failed" 패닉
+  - SD 카드의 파일은 원본과 같고, PC 에서도 잘 읽히고, fsck.fat 검사도 이상 없었음
+  - SD 속도를 8MHz 로 낮춰도 똑같이 실패 -> 배선 신호 문제가 아님
+  - 원인: ESP32 errata. SAR ADC 전원이 켜지는 순간 GPIO36, GPIO39 입력이
+    약 80ns 동안 LOW 로 튐.
+    retro-go 가 쓰는 legacy ADC 드라이버는 방향키를 읽을 때마다(10ms 간격) ADC 전원을
+    켰다 끄므로, SD 전송 중에 MISO(GPIO36) 비트가 깨져서 읽기 오류가 남.
+    작은 ROM 은 전송 시간이 짧아서 운 좋게 피해 가기도 함
+  - 해결: SD MISO 를 GPIO22 로 옮겨서 납땜, SD 속도는 기본값 20MHz 로 되돌림
+  - START(GPIO39) 도 같은 영향을 받지만, 버튼은 10ms x 2 번 debounce 로 걸러져서 문제 없음
+
+남는 핀 참고 (이 보드에서)
+  - 쓸 수 있음: GPIO21
+  - 피할 것: GPIO12 (부팅 스트랩), GPIO14/34 (T-Display 배터리 측정 회로),
+            GPIO16/17 (PSRAM), GPIO36/39 (ADC 글리치 errata, 입력 전용)
 
 부팅 로그 참고
   - "Virtual address not enough for PSRAM ... 4MB is mapped" :

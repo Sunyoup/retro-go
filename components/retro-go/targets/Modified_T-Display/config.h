@@ -2,7 +2,7 @@
 // LilyGO TTGO T-Display (ESP32-D0WDQ6, 16MB flash, ST7789 135x240 IPS) modified:
 // - 8MB PSRAM hand-soldered on top of the flash (CS = GPIO16, CLK = GPIO17)
 // - LCD DC moved from GPIO16 to GPIO13 (GPIO16 is now PSRAM CS)
-// - SPI SD card on GPIO2/15/26/36, buttons and PAM8302A amplifier on a breadboard
+// - SPI SD card on GPIO2/15/22/26, buttons and PAM8302A amplifier on a breadboard
 #define RG_TARGET_NAME             "MODIFIED-T-DISPLAY"
 
 // Storage
@@ -90,9 +90,11 @@
 #define RG_GPIO_LCD_RST             GPIO_NUM_23
 
 // SPI SD Card
-// MISO moved from GPIO12 to GPIO36: GPIO12 is a strapping pin (MTDI), and the SD module
-// pulling it high at reset selects 1.8V flash voltage, which makes the boot fail.
-#define RG_GPIO_SDSPI_MISO          GPIO_NUM_36
+// MISO moved from GPIO12 to GPIO22:
+// - GPIO12 is a strapping pin (MTDI), the SD module pulling it high at reset selects 1.8V flash voltage.
+// - GPIO36/39 get ~80ns low glitches whenever the SAR ADC powers up (ESP32 errata), which happens on
+//   every ADC gamepad read and corrupted SD reads ("ROM: Read error").
+#define RG_GPIO_SDSPI_MISO          GPIO_NUM_22
 #define RG_GPIO_SDSPI_MOSI          GPIO_NUM_15
 #define RG_GPIO_SDSPI_CLK           GPIO_NUM_2
 #define RG_GPIO_SDSPI_CS            GPIO_NUM_26
