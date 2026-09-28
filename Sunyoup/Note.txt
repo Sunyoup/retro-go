@@ -164,7 +164,8 @@ Modified_T-Display 브랜치에서 갈라져 나온 브랜치로, 게임 화면�
   - 게임 메뉴에서 배율(Scaling) 을 Fit 으로 바꾸면 비율을 유지하는 화면으로 돌아감
   - 배율은 에뮬레이터별로 SD 카드에 저장되고, 저장된 값이 있으면 기본값보다 우선함.
     예전에 배율을 직접 바꾼 적이 있으면 메뉴에서 한 번 Full 로 바꿔야 함
-  - upstream 버그: rg_display_set_rotation() 이 회전값을 배율 설정 키(DispScaling)에
-    저장함. 메뉴에서 화면 회전을 바꾸면 배율 설정이 덮어써짐 (고치지 않음)
+  - upstream 버그 수정: rg_display_set_rotation() 이 회전값을 배율 설정 키(DispScaling)에
+    저장하고 있었음. 메뉴에서 화면 회전을 바꾸면 배율 설정이 덮어써지고, 회전 설정은
+    저장되지 않았음. 회전 설정 키(DispRotation) 에 저장하도록 고침 (rg_display.c)
   - 병합 이미지 이름: retro-go_modified_t-display_WideFull.bin
     (Modified_T-Display 브랜치 것은 retro-go_modified_t-display_merged.bin)
