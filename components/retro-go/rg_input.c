@@ -337,6 +337,11 @@ void rg_input_init(void)
 
 #if RG_BATTERY_DRIVER == 1 /* ADC */
     RG_LOGI("Initializing ADC battery driver...");
+    #ifdef RG_GPIO_BATTERY_ADC_ENABLE
+    // Some boards (eg T-Display) only connect the battery voltage divider while this pin is high
+    gpio_set_direction(RG_GPIO_BATTERY_ADC_ENABLE, GPIO_MODE_OUTPUT);
+    gpio_set_level(RG_GPIO_BATTERY_ADC_ENABLE, 1);
+    #endif
     if (RG_BATTERY_ADC_UNIT == ADC_UNIT_1)
     {
         adc1_config_width(ADC_WIDTH_MAX - 1); // there is no adc2_config_width

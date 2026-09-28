@@ -71,11 +71,15 @@
 #define RG_BOOT_LAUNCHER_ON_POWER_ON 1
 
 // Battery
-// The T-Display has a battery divider on GPIO34, but it is only enabled while GPIO14 is high.
-// Not supported for now.
-// #define RG_BATTERY_DRIVER           1
-// #define RG_BATTERY_ADC_UNIT         ADC_UNIT_1
-// #define RG_BATTERY_ADC_CHANNEL      ADC_CHANNEL_6
+// On-board divider (100k + 100k): BAT -> 1/2 -> GPIO34 (ADC1_CH6)
+// raw is the calibrated voltage at the pin in mV, so the battery voltage is raw * 2.
+// On newer T-Display boards the divider is only connected on battery power while ADC_EN (GPIO14) is high.
+#define RG_BATTERY_DRIVER           1
+#define RG_GPIO_BATTERY_ADC_ENABLE  GPIO_NUM_14
+#define RG_BATTERY_ADC_UNIT         ADC_UNIT_1
+#define RG_BATTERY_ADC_CHANNEL      ADC_CHANNEL_6
+#define RG_BATTERY_CALC_PERCENT(raw) (((raw) * 2.f - 3500.f) / (4200.f - 3500.f) * 100.f)
+#define RG_BATTERY_CALC_VOLTAGE(raw) ((raw) * 2.f * 0.001f)
 
 // Status LED
 // #define RG_GPIO_LED                 GPIO_NUM_NC
