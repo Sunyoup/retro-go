@@ -32,6 +32,8 @@
 #include "targets/crokpocket/config.h"
 #elif defined(RG_TARGET_REDROID_GO)
 #include "targets/redroid-go/config.h"
+#elif defined(RG_TARGET_MODIFIED_T_DISPLAY)
+#include "targets/Modified_T-Display/config.h"
 #else
 #warning "No target defined. Defaulting to ODROID-GO."
 #include "targets/odroid-go/config.h"
@@ -149,6 +151,11 @@
 
 #ifndef RG_ZIP_SUPPORT
 #define RG_ZIP_SUPPORT 1
+#endif
+
+// Always start the launcher after a power cycle instead of resuming the last game (warm reboots still resume)
+#ifndef RG_BOOT_LAUNCHER_ON_POWER_ON
+#define RG_BOOT_LAUNCHER_ON_POWER_ON 0
 #endif
 
 #ifndef RG_SCREEN_PARTIAL_UPDATES

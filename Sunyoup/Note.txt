@@ -1,0 +1,127 @@
+Modified T-Display 용 retro-go 포팅 노트
+==========================================
+
+브랜치 : Modified_T-Display
+타깃   : components/retro-go/targets/Modified_T-Display
+빌드   : ESP-IDF v5.5.5
+사진   : Sunyoup/images/ (보드 사진, circuitDiagram.png 회로도)
+
+
+1. 하드웨어
+-----------
+- LilyGO TTGO T-Display
+  - ESP32-D0WDQ6 (rev 1.1), flash 16MB
+  - ST7789 135x240 IPS LCD
+- PSRAM 8MB (64Mbit) 를 flash 위에 겹쳐서 직접 납땜
+  - PSRAM CS  = GPIO16, CLK = GPIO17 (ESP32 기본 PSRAM 핀)
+  - 원래 LCD DC 로 쓰던 GPIO16 을 PSRAM CS 로 돌리고, LCD DC 는 GPIO13 으로 옮김
+- 브레드보드에 버튼, SPI SD 카드, PAM8302A 앰프 연결
+- 소리 : 내장 DAC GPIO25 -> PAM8302A A+ (A- 는 GND)
+
+
+2. 핀 연결
+----------
+LCD (SPI3/VSPI, 40MHz)
+  MOSI 19, SCLK 18, CS 5, DC 13, RST 23, 백라이트 4
+
+SD 카드 (SPI2/HSPI)
+  SCK 2, MOSI 15, MISO 36, CS 26
+  * MISO 는 원래 GPIO12 였으나 GPIO36 으로 옮김 (아래 5번 참조)
+
+방향키 (ADC, 두 버튼씩 한 핀에 묶음, 각 핀에 10k 풀다운)
+  UP/DOWN    = GPIO38 (ADC1_CH2)
+  LEFT/RIGHT = GPIO37 (ADC1_CH1)
+  UP, LEFT   : 3V3 에 직결 -> 약 4095  (판정 3072~4095)
+  DOWN, RIGHT: 10k 저항 거쳐 연결 -> 약 2048 (판정 1024~3071)
+
+버튼 (GND 로 눌림)
+  SELECT 27 (내부 풀업), START 39 (외부 10k 풀업 R5)
+  A 32, B 33 (내부 풀업)
+  MENU 35, OPTION 0 (T-Display 보드에 있는 버튼 두 개)
+  START + SELECT 동시에 누르기 = MENU (조합키)
+
+
+3. 추가/수정한 파일
+-------------------
+components/retro-go/targets/Modified_T-Display/config.h
+  - 위 핀맵, 화면 설정, 버튼 설정
+  - 화면: ST7789 RAM(320x240) 안에서 보이는 영역 {40, 53, 40, 52}
+    MADCTL 0xA0 (MY|MV, Arduino_GFX 의 rotation 3 과 같음, 처음 설정에서 180도 회전)
+    IPS 패널이라 Display Inversion On (0x21)
+  - RG_GAMEPAD_VIRT_MAP : START+SELECT = MENU
+  - RG_BOOT_LAUNCHER_ON_POWER_ON 1
+  - 배터리 표시는 안 넣음 (GPIO14 를 켜야 GPIO34 로 전압을 읽을 수 있는데 retro-go 에 그 기능이 없음)
+
+components/retro-go/targets/Modified_T-Display/sdkconfig
+  - odroid-go 의 sdkconfig 를 복사해서 PSRAM 부분만 수정
+  - PSRAM 80MHz, CONFIG_SPIRAM_OCCUPY_NO_HOST
+    (80MHz 에서 SPI host 를 점유하는 것은 32Mbit PSRAM 뿐이라 8MB 는 괜찮음.
+     LCD 와 SD 가 SPI2, SPI3 를 모두 쓰므로 점유되면 안 됨)
+  - 손 납땜 PSRAM 이라 부팅할 때 메모리 테스트 (CONFIG_SPIRAM_MEMTEST=y)
+    테스트가 실패하면 CONFIG_SPIRAM_SPEED_40M 으로 낮출 것
+
+components/retro-go/targets/Modified_T-Display/env.py
+  - IDF_TARGET = esp32, FW_FORMAT = none
+  - DEFAULT_APPS = "launcher retro-core" : NES(nofrendo) 가 들어있는 retro-core 와 launcher 만 빌드
+    (Doom, 메가드라이브, MSX 는 빌드 안 함.
+     retro-core 안에 GB, SMS, PCE 등도 같이 들어 있어서 launcher 에 탭이 보이는데,
+     필요 없으면 launcher 설정에서 탭을 숨기면 됨)
+
+components/retro-go/config.h
+  - 새 타깃 등록 (RG_TARGET_MODIFIED_T_DISPLAY)
+  - 새 옵션 RG_BOOT_LAUNCHER_ON_POWER_ON (기본값 0, 다른 타깃은 영향 없음)
+
+components/retro-go/rg_system.c
+  - RG_BOOT_LAUNCHER_ON_POWER_ON 이 1 이면, 게임 앱이 전원 켜짐(또는 EN/RST 버튼)으로
+    시작됐을 때 직전 게임 설정을 지우고 launcher 로 재시작
+  - 원래 retro-go 는 전원을 켜면 직전 게임을 바로 이어서 시작하는데,
+    버튼이 부족해서 메뉴로 돌아갈 수 없었기 때문
+  - 게임 안에서 일어나는 소프트웨어 재시작은 그대로 이어서 실행됨
+
+
+4. 빌드와 플래시
+----------------
+  . /data/esp/esp-idf-v5.5.5/export.sh
+  python rg_tool.py --target Modified_T-Display build-img
+
+  -> retro-go_<버전>_modified_t-display.img 생성
+     bootloader(0x1000), 파티션 테이블(0x8000), launcher(0x10000), retro-core(0x120000)
+     를 모두 합친 이미지라서 그대로 0x0 에 쓰면 됨 (.bin 으로 이름만 바꿔도 됨)
+
+  esptool.py --chip esp32 --port /dev/ttyACM0 --baud 921600 write_flash 0x0 <이미지 파일>
+
+  또는 한 번에:
+  python rg_tool.py --target Modified_T-Display --port /dev/ttyACM0 install
+
+  * esptool image_info 는 이 이미지에 "invalid magic number: 0xff" 오류를 내는데,
+    ESP32 병합 이미지는 bootloader 가 0x1000 부터라 정상임
+  * 브레드보드에 꽂은 채로 플래시 모드 진입이 안 되면 T-Display 를 빼고 플래시할 것
+    (GPIO2 = SD CLK 이 부팅 순간 HIGH 가 되는데, 다운로드 모드에서는 GPIO2 가 LOW 여야 함)
+
+  NES ROM 은 SD 카드의 /roms/nes/ 에 넣음
+
+
+5. 겪은 문제
+------------
+GPIO12 스트랩 문제 (SD MISO)
+  - 보드에 꽂으면 부팅이 안 되고 RTCWDT 리셋을 반복함 (boot:0x13 -> boot:0x3b)
+  - GPIO12(MTDI) 가 리셋 순간 HIGH 이면 ESP32 는 flash 전원(VDD_SDIO)을 1.8V 로 설정함.
+    이 보드의 flash 는 3.3V 용이라 읽지 못함
+  - SD 모듈이 MISO(GPIO12) 를 HIGH 로 끌어올리고 있었음
+  - 부트 ROM 이 먼저 읽는 값이라 소프트웨어로는 해결 불가
+  - 해결: SD MISO 를 GPIO36 으로 옮겨서 납땜
+    (다른 방법: espefuse.py set_flash_voltage 3.3V 로 eFuse 고정, 되돌릴 수 없음)
+
+부팅 로그 참고
+  - "Virtual address not enough for PSRAM ... 4MB is mapped" :
+    ESP32 는 PSRAM 을 4MB 까지만 주소에 올리므로 정상
+  - legacy i2s / ADC 드라이버 deprecated 경고 : retro-go 가 legacy 드라이버를 씀, 동작에는 문제 없음
+  - 보드에 안 꽂고 켜면 START(GPIO39) 입력이 떠서 눌린 것으로 읽히고 recovery mode 로 들어감 (정상)
+
+
+6. 사용법 요약
+--------------
+  - 전원을 켜면 항상 launcher (게임 목록) 가 뜸
+  - 게임 중 START+SELECT : retro-go 메뉴 (저장, 불러오기, launcher 로 나가기 등)
+  - 전원을 끄면 저장하지 않은 진행은 사라짐 (자동 저장 없음)
+  - START+SELECT 조합은 MENU 로 바뀌므로 게임에는 전달되지 않음

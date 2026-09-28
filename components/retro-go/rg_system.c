@@ -459,6 +459,17 @@ rg_app_t *rg_system_init(int sampleRate, const rg_handlers_t *handlers, void *_u
 #endif
 
     rg_storage_init();
+
+#if defined(ESP_PLATFORM) && RG_BOOT_LAUNCHER_ON_POWER_ON
+    // Devices without a usable MENU button can't leave a game, so always start the launcher after a power cycle
+    if ((r_reason == ESP_RST_POWERON || r_reason == ESP_RST_EXT) && strcmp(app.name, RG_APP_LAUNCHER) != 0)
+    {
+        RG_LOGW("Power on, switching to launcher instead of resuming the last game.\n");
+        update_boot_config(RG_APP_LAUNCHER, NULL, NULL, 0);
+        esp_restart();
+    }
+#endif
+
     rg_input_init();
 
     // Test for recovery request as early as possible
