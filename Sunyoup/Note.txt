@@ -50,7 +50,8 @@ SD 카드 (SPI2/HSPI)
 components/retro-go/targets/Modified_T-Display/config.h
   - 위 핀맵, 화면 설정, 버튼 설정
   - 화면: ST7789 RAM(320x240) 안에서 보이는 영역 {40, 53, 40, 52}
-    MADCTL 0xA0 (MY|MV, Arduino_GFX 의 rotation 3 과 같음, 처음 설정에서 180도 회전)
+    MADCTL 0xA8 (MY|MV|BGR, 방향은 Arduino_GFX 의 rotation 3 과 같음, 처음 설정에서 180도 회전)
+    색 순서는 BGR (아래 5번 "색이 이상함" 참조)
     IPS 패널이라 Display Inversion On (0x21)
   - RG_GAMEPAD_VIRT_MAP : START+SELECT = MENU
   - RG_BOOT_LAUNCHER_ON_POWER_ON 1
@@ -146,6 +147,15 @@ GPIO36 글리치 문제 (SD MISO, 일부 게임에서 "ROM: Read error")
   - 해결: RG_GPIO_BATTERY_ADC_ENABLE 옵션을 만들어 GPIO14 를 HIGH 로 켬
     (분압 회로가 항상 켜지지만 전류는 약 21uA 라 무시할 만함)
   - 확인: 배터리만 연결했을 때 42.86% 3.80V 로 정상 표시
+
+색이 이상함 (빨강과 파랑이 바뀜)
+  - 증상: 1944 게임에서 푸른 바다가 누렇게 나옴
+  - PC 에서 retro-go 의 nofrendo 코어로 같은 ROM 을 돌려 보면 파란색이 정상으로 나옴
+    -> 에뮬레이션 문제가 아니라 LCD 색 순서 문제
+  - 원인: MADCTL 을 RGB(0xA0) 로 설정했는데, retro-go 에서는 BGR(0xA8) 이어야 맞음
+    (retro-go 의 다른 타깃들도 대부분 BGR 비트 0x08 을 켬)
+  - 해결: MADCTL 0xA0 -> 0xA8
+  - 확인: 1944 타이틀 글자가 노란색, 바다가 파란색으로 나옴
 
 남는 핀 참고 (이 보드에서)
   - 쓸 수 있음: GPIO21
