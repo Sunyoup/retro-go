@@ -1,8 +1,9 @@
 Modified T-Display 용 retro-go 포팅 노트
 ==========================================
 
-브랜치 : Modified_T-Display      (게임 화면 비율 유지, 양옆이 빔)
-         Modified_T-Display_Wide (Modified_T-Display + 게임 화면을 꽉 채움, 아래 7번)
+브랜치 : Modified_T-Display           (게임 화면 비율 유지, 양옆이 빔. 더 관리하지 않음)
+         Modified_T-Display_Wide      (Modified_T-Display + 게임 화면을 꽉 채움, 아래 7번)
+         Modified_T-Display_Wide_Doom (Modified_T-Display_Wide + Doom, 아래 8번)
 타깃   : components/retro-go/targets/Modified_T-Display
 빌드   : ESP-IDF v5.5.5
 사진   : Sunyoup/images/ (보드 사진, circuitDiagram.png 회로도)
@@ -69,10 +70,10 @@ components/retro-go/targets/Modified_T-Display/sdkconfig
 
 components/retro-go/targets/Modified_T-Display/env.py
   - IDF_TARGET = esp32, FW_FORMAT = none
-  - DEFAULT_APPS = "launcher retro-core" : NES(nofrendo) 가 들어있는 retro-core 와 launcher 만 빌드
-    (Doom, 메가드라이브, MSX 는 빌드 안 함.
-     retro-core 안에 GB, SMS, PCE 등도 같이 들어 있어서 launcher 에 탭이 보이는데,
-     필요 없으면 launcher 설정에서 탭을 숨기면 됨)
+  - DEFAULT_APPS = "launcher retro-core prboom-go" : launcher, retro-core, Doom(prboom-go) 을 빌드
+    (메가드라이브, MSX 는 빌드 안 함. Doom 은 Modified_T-Display_Wide_Doom 브랜치에서 추가)
+    retro-core 안에 NES(nofrendo) 뿐 아니라 SMS(SMSPlus), GB, PCE 등도 같이 들어 있어서
+    launcher 에 탭이 보임. 필요 없으면 launcher 설정에서 탭을 숨기면 됨
 
 components/retro-go/config.h
   - 새 타깃 등록 (RG_TARGET_MODIFIED_T_DISPLAY)
@@ -109,7 +110,11 @@ components/retro-go/rg_input.c
   * 브레드보드에 꽂은 채로 플래시 모드 진입이 안 되면 T-Display 를 빼고 플래시할 것
     (GPIO2 = SD CLK 이 부팅 순간 HIGH 가 되는데, 다운로드 모드에서는 GPIO2 가 LOW 여야 함)
 
-  NES ROM 은 SD 카드의 /roms/nes/ 에 넣음
+  ROM 은 SD 카드의 아래 폴더에 넣음 (zip 압축도 됨)
+    NES                      : /roms/nes/   (.nes)
+    Sega Master System       : /roms/sms/   (.sms .sg)
+    Game Gear                : /roms/gg/    (.gg)
+    Doom (WAD 파일)          : /roms/doom/  (.wad)
 
 
 5. 겪은 문제
@@ -201,3 +206,34 @@ Modified_T-Display 브랜치에서 갈라져 나온 브랜치로, 게임 화면�
     저장되지 않았음. 회전 설정 키(DispRotation) 에 저장하도록 고침 (rg_display.c)
   - 병합 이미지 이름: retro-go_modified_t-display_WideFull.bin
     (Modified_T-Display 브랜치 것은 retro-go_modified_t-display_merged.bin)
+
+
+8. Modified_T-Display_Wide_Doom 브랜치
+--------------------------------------
+Modified_T-Display_Wide 브랜치에서 갈라져 나온 브랜치로, Doom(prboom-go) 을 추가함.
+
+SMSPlus (Sega Master System)
+  - 따로 추가할 것이 없었음. SMSPlus 는 retro-core 에 처음부터 들어 있어서
+    /roms/sms/ 에 ROM 만 넣으면 됨
+  - 확인: 알라딘이 잘 동작함
+
+Doom
+  수정한 파일
+    components/retro-go/targets/Modified_T-Display/env.py
+      - DEFAULT_APPS 에 prboom-go 추가 (이것 한 줄뿐)
+  - prboom-go.bin 이 rg_tool.py 의 기본 파티션 크기(786432) 보다 크지만,
+    tools/mkfw.py 가 파티션 크기를 자동으로 늘려 줌. 전체 이미지 약 3.1MB
+  - SD 카드의 /roms/doom/ 에 WAD 파일을 넣고 launcher 의 DOOM 탭에서 실행
+  - 확인: 240x135 화면에서 잘 동작함. 화면은 작지만 다 잘 보임
+
+  버튼 (prboom-go 기본값)
+    방향키             : 이동, 회전
+    A                  : 발사, 메뉴 선택
+    B                  : 달리기, 옆걸음(누른 채 좌우), 메뉴 뒤로
+    START              : 문 열기/스위치
+    SELECT             : 무기 바꾸기
+    MENU (START+SELECT): Doom 메뉴. 길게 누르면 retro-go 메뉴
+    OPTION (GPIO0)     : 지도
+    * START+SELECT 를 같이 누르면 문 열기와 무기 바꾸기도 함께 눌림
+
+  - 병합 이미지 이름: retro-go_modified_t-display_WideDoom.bin

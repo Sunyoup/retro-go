@@ -6,5 +6,5 @@ IDF_TARGET = "esp32"
 # .fw file format, if supported by the device
 FW_FORMAT = "none"
 # Default apps to build when none is specified (comment to build all)
-# Only the launcher and retro-core (nofrendo NES emulator) for now
-DEFAULT_APPS = "launcher retro-core"
+# launcher, retro-core (NES, SMS, GB, PCE, ...) and prboom-go (Doom)
+DEFAULT_APPS = "launcher retro-core prboom-go"
