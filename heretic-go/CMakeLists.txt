@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-set(COMPONENTS "main retro-go heretic")
+set(COMPONENTS "main retro-go heretic opl")
 set(RG_ENABLE_NETWORKING 0)
 include(../base.cmake)
 project(heretic-go)
