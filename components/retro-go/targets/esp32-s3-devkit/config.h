@@ -46,11 +46,12 @@
 
 // Input
 // Refer to rg_input.h to see all available RG_KEY_* and RG_GAMEPAD_*_MAP types
+
 #define RG_GAMEPAD_ADC_MAP {\
-    {RG_KEY_UP,    ADC_UNIT_1, ADC_CHANNEL_5, ADC_ATTEN_DB_11, 3072, 4096},\
-    {RG_KEY_RIGHT, ADC_UNIT_1, ADC_CHANNEL_6, ADC_ATTEN_DB_11, 1024, 3071},\
-    {RG_KEY_DOWN,  ADC_UNIT_1, ADC_CHANNEL_5, ADC_ATTEN_DB_11, 1024, 3071},\
-    {RG_KEY_LEFT,  ADC_UNIT_1, ADC_CHANNEL_6, ADC_ATTEN_DB_11, 3072, 4096},\
+    {RG_KEY_UP,    ADC_UNIT_1, ADC_CHANNEL_6, ADC_ATTEN_DB_11, 2148, 4096},\
+    {RG_KEY_DOWN,  ADC_UNIT_1, ADC_CHANNEL_6, ADC_ATTEN_DB_11, -100, 1608},\
+    {RG_KEY_RIGHT, ADC_UNIT_1, ADC_CHANNEL_5, ADC_ATTEN_DB_11, 2301, 4200},\
+    {RG_KEY_LEFT,  ADC_UNIT_1, ADC_CHANNEL_5, ADC_ATTEN_DB_11, -100, 1661},\
 }
 #define RG_GAMEPAD_GPIO_MAP {\
     {RG_KEY_SELECT, .num = GPIO_NUM_16, .pullup = 1, .level = 0},\
@@ -70,7 +71,7 @@
 
 
 // Status LED
-#define RG_GPIO_LED                 GPIO_NUM_38
+#define RG_GPIO_LED                 GPIO_NUM_NC // GPIO_NUM_38
 
 // SPI Display (back up working)
 #define RG_GPIO_LCD_MISO            GPIO_NUM_NC
@@ -78,7 +79,7 @@
 #define RG_GPIO_LCD_CLK             GPIO_NUM_48
 #define RG_GPIO_LCD_CS              GPIO_NUM_NC
 #define RG_GPIO_LCD_DC              GPIO_NUM_47
-#define RG_GPIO_LCD_BCKL            GPIO_NUM_39
+#define RG_GPIO_LCD_BCKL            GPIO_NUM_14
 #define RG_GPIO_LCD_RST             GPIO_NUM_3
 
 #define RG_GPIO_SDSPI_MISO          GPIO_NUM_9
