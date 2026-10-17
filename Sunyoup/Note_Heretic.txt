@@ -1,0 +1,158 @@
+자작 ESP32-S3 게임기용 retro-go + Heretic 포팅 노트
+====================================================
+
+브랜치 : MyS3-Devkit         (master + 자작 보드 핀맵, config.h 만 바꿈)
+         MyS3-Devkit-Heretic (MyS3-Devkit + Heretic 앱 heretic-go 추가)
+타깃   : components/retro-go/targets/esp32-s3-devkit
+빌드   : ESP-IDF v5.5.5
+사진   : Sunyoup/images/20261018_032739.jpg (만능기판에 만든 보드)
+원본   : Heretic 소스 https://github.com/OpenSourcedGames/Heretic
+         (Raven Software 1996 DOS 소스, GPLv2, v1.3)
+
+* T-Display 쪽 작업(Modified_T-Display* 브랜치)의 노트는 그 브랜치의 Sunyoup/Note.txt
+
+
+1. 하드웨어
+-----------
+  - ESP32-S3-DevKitC (ESP32-S3-WROOM-1, 16MB flash, 8MB octal PSRAM)
+  - ILI9341 320x240 SPI TFT
+  - 아날로그 thumbstick (상하좌우), 버튼 A B X Y SELECT START
+  - SPI SD 카드
+  - 외부 I2S DAC 모듈, 소리는 모노
+  - 배터리 전압 측정 (100k/100k 분압)
+  - 시리얼 콘솔: 보드의 UART 포트 (CH343, /dev/ttyACM0, 115200)
+
+
+2. 핀 연결 (targets/esp32-s3-devkit/config.h)
+---------------------------------------------
+  LCD (SPI2, 40MHz)
+    MOSI 12, CLK 48, DC 47, RST 3, 백라이트 PWM 14
+    CS 는 GND 에 고정 (GPIO 안 씀), MISO 안 씀
+  SD 카드 (SPI3)
+    MISO 9, MOSI 11, CLK 13, CS 10
+  I2S DAC
+    BCK 41, WS 42, DATA 40
+  버튼 (풀업, 누르면 LOW)
+    SELECT 16, START 17, MENU 18, OPTION 8, A 15, B 5
+  아날로그 스틱 (ADC1)
+    상하 ADC1_CH6, 좌우 ADC1_CH5 (보드에 맞춘 기준값은 config.h 참조)
+  배터리
+    ADC1_CH3, 분압 1/2, 3.5V = 0%, 4.2V = 100%
+  상태 LED : 없음
+
+
+3. MyS3-Devkit 브랜치
+---------------------
+  master 에서 갈라짐. targets/esp32-s3-devkit/config.h 만 자작 보드의 것으로 덮어씀.
+  master 의 원래 설정과 다른 점:
+    - 아날로그 스틱 채널과 기준값
+    - 상태 LED 없음 (원래 GPIO38)
+    - 백라이트 GPIO14 (원래 GPIO39)
+  NES, SMS, GB, PCE, Doom, 메가드라이브, MSX 등 모든 게임이 잘 동작함.
+
+
+4. MyS3-Devkit-Heretic 브랜치 : Heretic 포팅
+---------------------------------------------
+새 앱 heretic-go 를 prboom-go(Doom) 와 같은 구조로 만듦.
+
+  heretic-go/CMakeLists.txt
+  heretic-go/main/main.c
+    - DOS 의 I_IBM.C / I_SOUND.C 를 대신하는 retro-go 연결 코드
+      화면, 버튼 입력, 타이머, zone 메모리, 오류 처리 (소리는 아직 무음)
+    - Heretic 은 320x200 으로 그리고, retro-go 가 화면 크기에 맞춤
+    - 스택 16KB 짜리 별도 태스크에서 실행 (app_main 스택은 8KB 라 부족)
+    - zone 메모리 6MB 를 PSRAM 에 잡음
+  heretic-go/components/heretic/
+    - 원본 소스 중 게임 부분 (파일명 소문자, 줄바꿈 LF 로 정리)
+    - DOS 전용 파일(I_IBM.C, I_SOUND.C, I_CYBER.C, *.ASM, 네트워크/옛 파일)은 뺌
+    - s_sound.c : I_IBM.C 앞부분에 있던 소리 API(S_*) 를 떼어 옴
+    - i_system.c : DOS 코드 중 플랫폼과 무관한 부분 (FixedMul, 싱글 플레이 네트워크 등)
+    - 원래 바꾼 곳에는 "retro-go:" 주석을 달아 둠
+  launcher/main/applications.c
+    - "Heretic" 탭 추가 (SD 카드의 /roms/heretic/, .wad)
+  rg_tool.py
+    - heretic-go 앱 등록
+  components/retro-go/targets/esp32-s3-devkit/env.py
+    - 빌드할 앱 목록에 heretic-go 추가
+
+  WAD 파일
+    - SD 카드의 /roms/heretic/ 에 넣음
+    - 정식판 HERETIC.WAD v1.3 (14,189,976 바이트, 에피소드 1~5) 로 확인함.
+      셰어웨어 heretic1.wad 도 그대로 동작하도록 원본 코드가 판을 자동으로 구별함
+    - 설정 파일: /retro-go/config/heretic.cfg
+    - 저장 파일: /retro-go/saves/heretic/hticsav?.hsg (Heretic 메뉴로 저장)
+
+
+5. 포팅하면서 고친 문제
+-----------------------
+작업 순서: 먼저 PC(리눅스)에서 화면을 이미지로 뽑는 테스트 프로그램으로 빌드해서
+AddressSanitizer 로 메모리 오류를 잡고, 그다음 ESP32-S3 에서 확인함.
+
+옛 컴파일러/64비트 관련
+  - 원본은 Watcom 으로 char 를 부호 있게(/j), enum 을 int 로(/ei) 컴파일함
+    -> -fsigned-char, 1996년 C 문법을 허용하는 경고 옵션 추가 (components/heretic/CMakeLists.txt)
+  - boolean 을 stdbool 과 함께 쓸 수 있게 int 로 정의 (WAD 구조체 안에 있어서 4바이트 유지)
+  - 포인터를 int 에 넣던 곳(mobj special1/2, 저장 파일 처리, 메모리 정렬 등)을 intptr_t 로
+    (ESP32 는 32비트라 원래도 되지만, PC 64비트 테스트를 위해)
+  - 포인터 배열을 "개수*4" 로 할당하던 곳을 sizeof 로
+  - DOS 헤더(dos.h, io.h, direct.h) 제거, strupr 이름 충돌(newlib) 해결
+  - 키 기본값을 DOS 스캔코드 대신 ASCII 코드로 (원래 NeXT 용 설정)
+
+원본 버그 (DOS 에서는 우연히 넘어가던 것)
+  - sprnames[] 끝에 NULL 이 없어서 스프라이트 이름을 세다가 배열 밖을 읽음 (info.c)
+  - 소리 방향 계산이 아직 비어 있는 채널의 mobj(NULL) 를 읽음 (s_sound.c)
+  - 적 이동 방향 반복문 "tdir >= DI_EAST" 가 GCC 에서는 enum 이 unsigned 라 끝나지 않고
+    배열 밖을 읽음 (p_enemy.c)
+  - 레벨 밖(시작 화면, 메뉴)에서 효과음을 낼 때 없는 플레이어 mobj(NULL) 를 읽음
+    -> 보드에서 시작 화면 중 버튼을 누르면 "System Panic" (s_sound.c)
+
+ESP32 관련
+  - zone 메모리 블록이 4/8바이트 경계에 안 맞음. x86 은 괜찮지만 ESP32 는 예외로 멈춤
+    -> 할당 크기를 8바이트 단위로 (z_zone.c)
+  - 내부 RAM(DRAM) 이 64KB 모자라서 링크 실패
+    -> 삼각함수 표(65KB) 를 const 로 해서 플래시에 두고,
+       visplanes 배열(85KB) 은 PSRAM 으로 (EXT_RAM_BSS_ATTR)
+  - "stack overflow in task main" (W_Init 중)
+    -> 원본이 WAD 디렉터리(2633개 x 16바이트 = 약 42KB) 를 alloca 로 스택에 잡음.
+       malloc 으로 바꾸고, 패치 목록도 같이 바꿈 (w_wad.c, r_data.c)
+
+시리얼 로그 받을 때 참고
+  - pyserial 로 열면 글자가 깨져서 들어옴. stty 로 설정하고 cat 으로 받으면 정상
+    stty -F /dev/ttyACM0 115200 raw -echo -crtscts; cat /dev/ttyACM0
+  - picocom 이 포트를 열고 있으면 로그가 나뉘므로 닫고 받을 것
+
+
+6. 빌드와 플래시
+----------------
+  . /data/esp/esp-idf-v5.5.5/export.sh
+  python rg_tool.py --target esp32-s3-devkit build-img
+    -> retro-go_<버전>_esp32-s3-devkit.img (모든 앱 + bootloader + 파티션 표)
+
+  esptool.py --chip esp32s3 --port /dev/ttyACM0 --baud 921600 write_flash 0x0 <이미지 파일>
+
+  heretic-go 만 바꿨을 때는 그 파티션만 써도 됨 (지금 배치에서 0x2f0000):
+  python rg_tool.py --target esp32-s3-devkit build heretic-go
+  esptool.py --chip esp32s3 --port /dev/ttyACM0 --baud 921600 write_flash 0x2f0000 heretic-go/build/heretic-go.bin
+
+  * T-Display(ESP32) 빌드 결과가 남아 있으면 "sdkconfig was generated for target esp32"
+    오류가 남. 먼저 python rg_tool.py --target esp32-s3-devkit clean
+
+
+7. 사용법 (지금 버전, 버튼은 나중에 다시 정할 예정)
+---------------------------------------------------
+  스틱   : 이동, 회전, 메뉴 이동
+  A      : 발사, 메뉴에서 "예(y)"
+  B      : 문 열기/사용, 메뉴 뒤로
+  START  : 메뉴 선택, 아이템 사용
+  SELECT : 인벤토리 다음 아이템
+  MENU   : 짧게 누르면 Heretic 메뉴, 길게 누르면 retro-go 메뉴 (launcher 로 나가기 등)
+  OPTION : 지도
+
+  아직 안 되는 것
+  - 소리 (다음 단계: 효과음 모노 -> 음악)
+  - 무기 바꾸기 버튼 (무기를 주우면 자동으로 바뀜)
+  - retro-go 메뉴의 저장/불러오기 (Heretic 자체 메뉴로 저장)
+
+  확인한 것
+  - 정식판 WAD 로 시작 화면, 데모, 메뉴, 새 게임(E1M1) 이 보드에서 잘 동작함
+  - 속도는 아직까지 괜찮음
