@@ -5,7 +5,8 @@
          MyS3-Devkit-Heretic (MyS3-Devkit + Heretic 앱 heretic-go 추가)
 타깃   : components/retro-go/targets/esp32-s3-devkit
 빌드   : ESP-IDF v5.5.5
-사진   : Sunyoup/images/20261018_032739.jpg (만능기판에 만든 보드)
+사진   : Sunyoup/images/20261018_032739.jpg (만능기판에 만든 보드, Doom 실행 중)
+         Sunyoup/images/20261018_051546.jpg (Heretic 실행 중)
 원본   : Heretic 소스 https://github.com/OpenSourcedGames/Heretic
          (Raven Software 1996 DOS 소스, GPLv2, v1.3)
 
@@ -86,6 +87,16 @@
     - 원래 바꾼 곳에는 "retro-go:" 주석을 달아 둠
   launcher/main/applications.c
     - "Heretic" 탭 추가 (SD 카드의 /roms/heretic/, .wad)
+  themes/default/background_heretic.png, banner_heretic.png, logo_heretic.png
+  launcher/main/images.c
+    - Heretic 탭의 배경(320x240), 제목 띠(272x24), 로고(46x50). 다른 기기와 같은 형식
+      배경: Heretic 초록 바탕에 Undead Warrior 실루엣 (Doom 배경과 같은 2색 방식)
+      제목 띠: 흰 기울임 글씨 HERETIC + 가로줄 (분홍색은 투명으로 처리됨)
+      로고: 타이틀 화면의 책 표지를 줄인 것
+    - 정식판 WAD 의 그림(TITLE, KNIGA1 스프라이트) 으로 만듦
+    - images.c 는 tools/gen_images.py 로 통째로 다시 만들면 upstream 에서 원래 어긋나 있던
+      background_msx 까지 바뀌므로, Heretic 그림 3개만 끼워 넣음
+    - 같은 그림을 Sunyoup/images/ 에도 복사해 둠
   rg_tool.py
     - heretic-go 앱 등록
   components/retro-go/targets/esp32-s3-devkit/env.py
@@ -98,6 +109,9 @@
     - 설정 파일: /retro-go/config/heretic.cfg
     - 저장 파일: /retro-go/saves/heretic/hticsav?.hsg (Heretic 메뉴로 저장)
       저장 이름은 맵과 시각으로 자동으로 붙음 (예: "E1M3 10-18 05:20")
+    - 표지(romart): SD 카드의 /romart/heretic/HERETIC.png (160x160)
+      launcher 는 WAD 이름에서 확장자만 png 로 바꾼 이름을 찾음.
+      파일은 Sunyoup/images/romart_heretic_HERETIC.png (타이틀 화면의 책 표지)
 
 
 5. 포팅하면서 고친 문제
