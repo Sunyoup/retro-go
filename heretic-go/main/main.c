@@ -2,7 +2,7 @@
  * heretic-go: Heretic (Raven Software, GPLv2 source release) for retro-go
  *
  * This file is the platform layer that replaces the DOS I_IBM.C / I_SOUND.C:
- * video, input, timer, zone memory, sound effects and music (mono).
+ * video, input, timer, zone memory, sound effects and music.
  */
 
 #include <stdlib.h>
@@ -319,7 +319,7 @@ void I_Quit(void)
 }
 
 //
-// Sound effects: software mixer, mono (the board has a single speaker)
+// Sound effects: software mixer, stereo (left/right from the sound direction)
 //
 
 // DMX sound lump: format (3), sample rate, number of samples, 8 bit unsigned samples
@@ -335,7 +335,7 @@ typedef struct {
     uint32_t pos;         // 16.16 fixed point
     uint32_t step;        // 16.16 fixed point
     uint32_t end;         // 16.16 fixed point
-    int volume;           // 0-127
+    int left, right;      // volume, 0-127
     int handle;
 } mix_channel_t;
 
@@ -357,8 +357,8 @@ static void sound_task(void *arg)
 
         for (int n = 0; n < AUDIO_BUFFER_LENGTH; n++)
         {
-            // The music is rendered in stereo, mix it down to mono
-            int sample = have_music ? (mixbuffer[n].left + mixbuffer[n].right) / 2 : 0;
+            int left = have_music ? mixbuffer[n].left : 0;
+            int right = have_music ? mixbuffer[n].right : 0;
             for (int i = 0; i < NUM_MIX_CHANNELS; i++)
             {
                 mix_channel_t *chan = &mix_channels[i];
@@ -370,18 +370,28 @@ static void sound_task(void *arg)
                     chan->sfx = NULL;
                     continue;
                 }
-                sample += (sfx->samples[chan->pos >> 16] - 128) * chan->volume;
+                int sample = sfx->samples[chan->pos >> 16] - 128;
+                left += sample * chan->left;
+                right += sample * chan->right;
                 chan->pos += chan->step;
             }
             // 8 bit sample * 7 bit volume = 15 bit per sound, clip the sum
-            if (sample > 32767)
-                sample = 32767;
-            else if (sample < -32768)
-                sample = -32768;
-            mixbuffer[n].left = mixbuffer[n].right = sample;
+            mixbuffer[n].left = RG_MIN(RG_MAX(left, -32768), 32767);
+            mixbuffer[n].right = RG_MIN(RG_MAX(right, -32768), 32767);
         }
         rg_audio_submit(mixbuffer, AUDIO_BUFFER_LENGTH);
     }
+}
+
+// sep: 0 = left, 128 = center, 256 = right (from S_StartSound). Same curve as Doom's DMX
+// replacement in linuxdoom: about 3/4 volume on both sides in the center.
+static void set_volume(mix_channel_t *chan, int vol, int sep)
+{
+    vol = RG_MIN(RG_MAX(vol, 0), 127);
+    sep = RG_MIN(RG_MAX(sep, 0), 256);
+    int l = sep + 1, r = 257 - sep;
+    chan->left = RG_MAX(vol - ((vol * l * l) >> 16), 0);
+    chan->right = RG_MAX(vol - ((vol * r * r) >> 16), 0);
 }
 
 static mix_channel_t *find_channel(int handle)
@@ -430,7 +440,7 @@ int I_StartSound(int id, void *data, int vol, int sep, int pitch, int priority)
     chan->pos = 0;
     chan->step = (uint32_t)(((uint64_t)sfx->samplerate << 16) * pitch / 128 / AUDIO_SAMPLE_RATE);
     chan->end = sfx->length << 16;
-    chan->volume = RG_MIN(RG_MAX(vol, 0), 127);
+    set_volume(chan, vol, sep);
     chan->handle = ((next_handle++ % 0x7FFFFF) + 1) << 8 | slot;
     chan->sfx = sfx;
     return chan->handle;
@@ -452,7 +462,7 @@ void I_UpdateSoundParams(int handle, int vol, int sep, int pitch)
 {
     mix_channel_t *chan = find_channel(handle);
     if (chan)
-        chan->volume = RG_MIN(RG_MAX(vol, 0), 127);
+        set_volume(chan, vol, sep);
 }
 
 //
