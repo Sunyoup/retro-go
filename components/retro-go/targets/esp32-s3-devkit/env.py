@@ -7,3 +7,4 @@ IDF_TARGET = "esp32s3"
 FW_FORMAT = "none"
 # Default apps to build when none is specified (comment to build all)
 # DEFAULT_APPS = "launcher prboom-go"
+DEFAULT_APPS = "launcher retro-core prboom-go gwenesis fmsx heretic-go"

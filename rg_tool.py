@@ -22,6 +22,7 @@ PROJECT_APPS = {
   'launcher':     [0, 16, 1048576],
   'retro-core':   [0, 16, 1048576],
   'prboom-go':    [0, 16, 786432],
+  'heretic-go':   [0, 16, 786432],
   'gwenesis':     [0, 16, 1048576],
   'fmsx':         [0, 16, 589824],
 }
