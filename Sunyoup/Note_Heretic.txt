@@ -58,14 +58,27 @@
   heretic-go/CMakeLists.txt
   heretic-go/main/main.c
     - DOS 의 I_IBM.C / I_SOUND.C 를 대신하는 retro-go 연결 코드
-      화면, 버튼 입력, 타이머, zone 메모리, 오류 처리 (소리는 아직 무음)
+      화면, 버튼 입력, 타이머, zone 메모리, 오류 처리, 효과음, 음악
     - Heretic 은 320x200 으로 그리고, retro-go 가 화면 크기에 맞춤
     - 스택 16KB 짜리 별도 태스크에서 실행 (app_main 스택은 8KB 라 부족)
+      app_main 은 끝내지 않고 대기함 (아래 5번 "app_main" 참조)
     - zone 메모리 6MB 를 PSRAM 에 잡음
+    - 효과음: 소프트웨어 믹서, 최대 8개, 모노 (보드 스피커가 하나라 좌우 방향은 무시)
+      원작의 거리별 볼륨과 음 높이 변화는 그대로. DOS 설정 기본값 3채널을 8채널로
+    - 음악: MUS -> MIDI 로 바꿔서 OPL2(애드립) 에뮬레이터로 연주, 모노로 합쳐서 효과음과 섞음
+      악기는 WAD 의 GENMIDI lump 를 씀. 소리 태스크(스택 4KB) 는 core 1, 게임은 core 0
+    - FPS 표시는 실제로 화면에 보낸 프레임을 셈
+    - 버튼 처리 (아래 7번 표). 매 tic 마다 눌려야 할 Heretic 키 집합을 만들고
+      이전 tic 과 다른 키만 이벤트로 보냄. SELECT/OPTION 은 짧게 누르기와 누른 채 스틱을 구분
+  heretic-go/components/opl/
+    - prboom-go 의 음악 재생기를 그대로 가져옴
+      (mus2mid.c, midifile.c, opl.c, opl_queue.c, oplplayer.c, dbopl.c)
+    - prboom 헤더 대신 opl_compat.h 를 쓰도록 include 만 바꿈
   heretic-go/components/heretic/
     - 원본 소스 중 게임 부분 (파일명 소문자, 줄바꿈 LF 로 정리)
     - DOS 전용 파일(I_IBM.C, I_SOUND.C, I_CYBER.C, *.ASM, 네트워크/옛 파일)은 뺌
     - s_sound.c : I_IBM.C 앞부분에 있던 소리 API(S_*) 를 떼어 옴
+    - mn_menu.c : 게임 저장할 때 이름을 키보드로 입력하는 대신 자동으로 붙임
     - i_system.c : DOS 코드 중 플랫폼과 무관한 부분 (FixedMul, 싱글 플레이 네트워크 등)
     - 원래 바꾼 곳에는 "retro-go:" 주석을 달아 둠
   launcher/main/applications.c
@@ -81,6 +94,7 @@
       셰어웨어 heretic1.wad 도 그대로 동작하도록 원본 코드가 판을 자동으로 구별함
     - 설정 파일: /retro-go/config/heretic.cfg
     - 저장 파일: /retro-go/saves/heretic/hticsav?.hsg (Heretic 메뉴로 저장)
+      저장 이름은 맵과 시각으로 자동으로 붙음 (예: "E1M3 10-18 05:20")
 
 
 5. 포팅하면서 고친 문제
@@ -106,6 +120,9 @@ AddressSanitizer 로 메모리 오류를 잡고, 그다음 ESP32-S3 에서 확�
   - 레벨 밖(시작 화면, 메뉴)에서 효과음을 낼 때 없는 플레이어 mobj(NULL) 를 읽음
     -> 보드에서 시작 화면 중 버튼을 누르면 "System Panic" (s_sound.c)
 
+  - 위와 같은 이유로, 레벨 밖(시작 화면, 메뉴)에서 효과음을 낼 때 S_StartSound 등이
+    플레이어 mobj 를 읽는 곳 전부를 빈 가상의 청취자로 대신함 (S_Listener)
+
 ESP32 관련
   - zone 메모리 블록이 4/8바이트 경계에 안 맞음. x86 은 괜찮지만 ESP32 는 예외로 멈춤
     -> 할당 크기를 8바이트 단위로 (z_zone.c)
@@ -115,6 +132,10 @@ ESP32 관련
   - "stack overflow in task main" (W_Init 중)
     -> 원본이 WAD 디렉터리(2633개 x 16바이트 = 약 42KB) 를 alloca 로 스택에 잡음.
        malloc 으로 바꾸고, 패치 목록도 같이 바꿈 (w_wad.c, r_data.c)
+  - app_main (음악을 넣은 뒤 "System Panic", uxTaskGetStackHighWaterMark 에서 멈춤)
+    -> Heretic 을 별도 태스크로 옮기면서 app_main 이 끝나게 했었음. 그러면 main 태스크가
+       지워지는데, retro-go 시스템 모니터가 1초마다 그 태스크의 스택 여유를 계속 읽음.
+       지워진 메모리가 다른 용도로 다시 쓰이면 멈춤. app_main 이 끝나지 않고 대기하도록 고침
 
 시리얼 로그 받을 때 참고
   - pyserial 로 열면 글자가 깨져서 들어옴. stty 로 설정하고 cat 으로 받으면 정상
@@ -138,21 +159,34 @@ ESP32 관련
     오류가 남. 먼저 python rg_tool.py --target esp32-s3-devkit clean
 
 
-7. 사용법 (지금 버전, 버튼은 나중에 다시 정할 예정)
----------------------------------------------------
-  스틱   : 이동, 회전, 메뉴 이동
-  A      : 발사, 메뉴에서 "예(y)"
-  B      : 문 열기/사용, 메뉴 뒤로
-  START  : 메뉴 선택, 아이템 사용
-  SELECT : 인벤토리 다음 아이템
-  MENU   : 짧게 누르면 Heretic 메뉴, 길게 누르면 retro-go 메뉴 (launcher 로 나가기 등)
-  OPTION : 지도
+7. 사용법
+---------
+  버튼          게임 중                                      메뉴에서
+  스틱          전진/후진, 회전                              이동
+  A             발사                                         선택, "예"
+  B             누르고 있는 동안 스틱 좌우 = 옆걸음, 달리기  뒤로
+  START         문 열기/스위치                               선택
+  SELECT        짧게: 다음 무기
+                누른 채 스틱 좌우: 인벤토리 이동
+                누른 채 스틱 위: 아이템 사용
+  OPTION        짧게: 지도
+                누른 채 스틱 위/아래: 날기 위/아래 (좌우는 평소처럼 회전)
+  MENU          짧게: Heretic 메뉴, 길게: retro-go 메뉴 (launcher 로 나가기 등)
 
-  아직 안 되는 것
-  - 소리 (다음 단계: 효과음 모노 -> 음악)
-  - 무기 바꾸기 버튼 (무기를 주우면 자동으로 바뀜)
-  - retro-go 메뉴의 저장/불러오기 (Heretic 자체 메뉴로 저장)
+  - 다음 무기: 가진 무기 중 탄약이 있는 다음 것. 지팡이와 건틀릿은 원작처럼 같은 칸('1' 키)
+  - SELECT/OPTION 을 누른 채 스틱을 쓰면, 놓을 때 무기 바꾸기/지도는 하지 않음
+  - B(달리기) 를 누른 채 아이템 사용을 하면 원작 규칙대로 아이템을 건너뜀
+  - 게임 저장/불러오기: Heretic 메뉴의 Game Files. 저장 이름은 자동
+  - 음악 볼륨, 효과음 볼륨: Heretic 메뉴 Options -> Sound Volume
+
+  넣지 않기로 한 것
+  - retro-go 메뉴의 저장/불러오기 (Heretic 메뉴로 저장)
+  - 밝기(감마), 치트 코드, 위/아래 보기
 
   확인한 것
-  - 정식판 WAD 로 시작 화면, 데모, 메뉴, 새 게임(E1M1) 이 보드에서 잘 동작함
-  - 속도는 아직까지 괜찮음
+  - 정식판 WAD 로 시작 화면, 데모, 메뉴, 새 게임, 효과음, 음악, 버튼 모두 보드에서 잘 동작함
+  - FPS 는 대부분 35 (게임 tic 상한), 가끔 21
+  - 저장 이름 자동 붙이기는 PC 테스트로 확인 (보드에서는 아직)
+
+  나중에 확인할 것
+  - 에피소드 4, 5 의 큰 맵에서 메모리가 충분한지
