@@ -2,6 +2,7 @@
 // MN_menu.c
 
 #include <ctype.h>
+#include <time.h>
 #include "doomdef.h"
 #include "p_local.h"
 #include "r_local.h"
@@ -836,30 +837,18 @@ static boolean SCLoadGame(int option)
 
 static boolean SCSaveGame(int option)
 {
-	char *ptr;
-
 	if(!FileMenuKeySteal)
 	{
-		FileMenuKeySteal = true;
-		strcpy(oldSlotText, SlotText[option]);
-		ptr = SlotText[option];
-		while(*ptr)
-		{
-			ptr++;
-		}
-		*ptr = '[';
-		*(ptr+1) = 0;
-		SlotStatus[option]++;
-		currentSlot = option;
-		slotptr = ptr-SlotText[option];
-		return false;
+		// retro-go: there is no keyboard to type the description,
+		// name the save after the map and the time instead ("E1M3 10-18 05:20")
+		time_t now = time(NULL);
+		struct tm *tm = localtime(&now);
+		snprintf(SlotText[option], SLOTTEXTLEN+1, "E%dM%d %02d-%02d %02d:%02d",
+			gameepisode, gamemap, tm->tm_mon+1, tm->tm_mday, tm->tm_hour, tm->tm_min);
 	}
-	else
-	{
-		G_SaveGame(option, SlotText[option]);
-		FileMenuKeySteal = false;
-		MN_DeactivateMenu();
-	}
+	G_SaveGame(option, SlotText[option]);
+	FileMenuKeySteal = false;
+	MN_DeactivateMenu();
 	BorderNeedRefresh = true;
 	if(quicksave == -1)
 	{
